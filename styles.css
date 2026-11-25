@@ -248,6 +248,22 @@ body {
   margin: 0;
 }
 
+.status-message {
+  margin: 0 0 0.75rem;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.9rem;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.status-message.error {
+  border-color: rgba(220, 38, 38, 0.35);
+  background: rgba(220, 38, 38, 0.08);
+  color: var(--danger);
+}
+
 .archived-section {
   margin-top: 2rem;
 }

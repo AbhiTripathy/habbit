@@ -1,4 +1,11 @@
 import {
+  createHabit,
+  deleteHabit,
+  fetchHabits,
+  setHabitArchived,
+  setHabitCompletedOnDate,
+} from "./db.js";
+import {
   calculateStreak,
   getLocalDateString,
   isCompletedToday,
@@ -7,16 +14,18 @@ import {
 const todayDateEl = document.getElementById("today-date");
 const addHabitForm = document.getElementById("add-habit-form");
 const habitInput = document.getElementById("habit-input");
+const addHabitButton = addHabitForm.querySelector('button[type="submit"]');
 const habitListEl = document.getElementById("habit-list");
 const habitProgressEl = document.getElementById("habit-progress");
 const emptyStateEl = document.getElementById("empty-state");
+const statusMessageEl = document.getElementById("status-message");
 const archivedSectionEl = document.getElementById("archived-section");
 const toggleArchivedBtn = document.getElementById("toggle-archived-btn");
 const archivedListEl = document.getElementById("archived-list");
 
 /**
  * Formats the current local date for display in the app header.
- * @param {Date} date
+ * @param {Date} [date]
  * @returns {string}
  */
 function formatDisplayDate(date = new Date()) {
@@ -27,14 +36,35 @@ function formatDisplayDate(date = new Date()) {
   });
 }
 
-/**
- * Temporary in-memory state for Phase 1 shell verification.
- * Will be replaced by db.js (Supabase) and streaks.js in upcoming phases.
- */
 const state = {
   habits: [],
   showArchived: false,
+  isLoading: true,
+  error: "",
 };
+
+function setStatus({ isLoading = state.isLoading, error = "" } = {}) {
+  state.isLoading = isLoading;
+  state.error = error;
+}
+
+function renderStatus() {
+  if (state.error) {
+    statusMessageEl.textContent = state.error;
+    statusMessageEl.className = "status-message error";
+    statusMessageEl.hidden = false;
+    return;
+  }
+
+  if (state.isLoading) {
+    statusMessageEl.textContent = "Loading habits...";
+    statusMessageEl.className = "status-message";
+    statusMessageEl.hidden = false;
+    return;
+  }
+
+  statusMessageEl.hidden = true;
+}
 
 function createDeleteButton(habit) {
   const deleteBtn = document.createElement("button");
@@ -42,15 +72,25 @@ function createDeleteButton(habit) {
   deleteBtn.className = "habit-delete";
   deleteBtn.setAttribute("aria-label", `Delete "${habit.title}"`);
   deleteBtn.innerHTML = `<i data-lucide="x" class="action-icon" aria-hidden="true"></i>`;
-  deleteBtn.addEventListener("click", () => {
-    state.habits = state.habits.filter((h) => h.id !== habit.id);
-    render();
+  deleteBtn.addEventListener("click", async () => {
+    deleteBtn.disabled = true;
+    try {
+      setStatus({ error: "" });
+      await deleteHabit(habit.id);
+      state.habits = state.habits.filter((h) => h.id !== habit.id);
+    } catch (err) {
+      setStatus({ error: err.message || "Could not delete habit." });
+    } finally {
+      render();
+    }
   });
   return deleteBtn;
 }
 
 function render() {
   todayDateEl.textContent = formatDisplayDate();
+  renderStatus();
+
   habitListEl.innerHTML = "";
   archivedListEl.innerHTML = "";
 
@@ -58,7 +98,7 @@ function render() {
   const archivedHabits = state.habits.filter((h) => h.isArchived);
 
   if (activeHabits.length === 0) {
-    emptyStateEl.hidden = false;
+    emptyStateEl.hidden = state.isLoading;
     habitProgressEl.textContent = "";
   } else {
     emptyStateEl.hidden = true;
@@ -81,14 +121,25 @@ function render() {
       `Mark "${habit.title}" as ${completedToday ? "incomplete" : "complete"}`
     );
     checkBtn.textContent = "✓";
-    checkBtn.addEventListener("click", () => {
+    checkBtn.addEventListener("click", async () => {
       const today = getLocalDateString();
-      if (isCompletedToday(habit.completedDates)) {
-        habit.completedDates = habit.completedDates.filter((d) => d !== today);
-      } else {
-        habit.completedDates.push(today);
+      const nextCompleted = !isCompletedToday(habit.completedDates);
+      checkBtn.disabled = true;
+      try {
+        setStatus({ error: "" });
+        await setHabitCompletedOnDate(habit.id, today, nextCompleted);
+        if (nextCompleted) {
+          if (!habit.completedDates.includes(today)) {
+            habit.completedDates.push(today);
+          }
+        } else {
+          habit.completedDates = habit.completedDates.filter((d) => d !== today);
+        }
+      } catch (err) {
+        setStatus({ error: err.message || "Could not update check-off." });
+      } finally {
+        render();
       }
-      render();
     });
 
     const titleSpan = document.createElement("span");
@@ -109,9 +160,17 @@ function render() {
     archiveBtn.className = "habit-archive";
     archiveBtn.setAttribute("aria-label", `Archive "${habit.title}"`);
     archiveBtn.innerHTML = `<i data-lucide="archive" class="action-icon" aria-hidden="true"></i>`;
-    archiveBtn.addEventListener("click", () => {
-      habit.isArchived = true;
-      render();
+    archiveBtn.addEventListener("click", async () => {
+      archiveBtn.disabled = true;
+      try {
+        setStatus({ error: "" });
+        await setHabitArchived(habit.id, true);
+        habit.isArchived = true;
+      } catch (err) {
+        setStatus({ error: err.message || "Could not archive habit." });
+      } finally {
+        render();
+      }
     });
 
     li.append(checkBtn, titleSpan, streakSpan, archiveBtn, createDeleteButton(habit));
@@ -138,9 +197,17 @@ function render() {
     restoreBtn.className = "habit-archive";
     restoreBtn.setAttribute("aria-label", `Unarchive "${habit.title}"`);
     restoreBtn.innerHTML = `<i data-lucide="archive-restore" class="action-icon" aria-hidden="true"></i>`;
-    restoreBtn.addEventListener("click", () => {
-      habit.isArchived = false;
-      render();
+    restoreBtn.addEventListener("click", async () => {
+      restoreBtn.disabled = true;
+      try {
+        setStatus({ error: "" });
+        await setHabitArchived(habit.id, false);
+        habit.isArchived = false;
+      } catch (err) {
+        setStatus({ error: err.message || "Could not unarchive habit." });
+      } finally {
+        render();
+      }
     });
 
     li.append(titleSpan, restoreBtn, createDeleteButton(habit));
@@ -157,20 +224,43 @@ toggleArchivedBtn.addEventListener("click", () => {
   render();
 });
 
-addHabitForm.addEventListener("submit", (event) => {
+addHabitForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const title = habitInput.value.trim();
   if (!title) return;
 
-  state.habits.push({
-    id: crypto.randomUUID(),
-    title,
-    completedDates: [],
-    isArchived: false,
-  });
+  addHabitButton.disabled = true;
+  habitInput.disabled = true;
 
-  habitInput.value = "";
-  render();
+  try {
+    setStatus({ error: "" });
+    const created = await createHabit(title);
+    state.habits.push(created);
+    habitInput.value = "";
+  } catch (err) {
+    setStatus({ error: err.message || "Could not add habit." });
+  } finally {
+    addHabitButton.disabled = false;
+    habitInput.disabled = false;
+    habitInput.focus();
+    render();
+  }
 });
 
-render();
+async function init() {
+  render();
+  try {
+    const habits = await fetchHabits();
+    state.habits = habits;
+    setStatus({ isLoading: false, error: "" });
+  } catch (err) {
+    setStatus({
+      isLoading: false,
+      error: err.message || "Could not load habits from Supabase.",
+    });
+  } finally {
+    render();
+  }
+}
+
+init();
