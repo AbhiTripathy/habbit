@@ -1,3 +1,9 @@
+import {
+  calculateStreak,
+  getLocalDateString,
+  isCompletedToday,
+} from "./streaks.js";
+
 const todayDateEl = document.getElementById("today-date");
 const addHabitForm = document.getElementById("add-habit-form");
 const habitInput = document.getElementById("habit-input");
@@ -56,24 +62,32 @@ function render() {
     habitProgressEl.textContent = "";
   } else {
     emptyStateEl.hidden = true;
-    const completedCount = activeHabits.filter((h) => h.completedToday).length;
+    const completedCount = activeHabits.filter((h) =>
+      isCompletedToday(h.completedDates)
+    ).length;
     habitProgressEl.textContent = `${completedCount} / ${activeHabits.length} done`;
   }
 
   for (const habit of activeHabits) {
+    const completedToday = isCompletedToday(habit.completedDates);
     const li = document.createElement("li");
-    li.className = `habit-item${habit.completedToday ? " completed" : ""}`;
+    li.className = `habit-item${completedToday ? " completed" : ""}`;
 
     const checkBtn = document.createElement("button");
     checkBtn.type = "button";
     checkBtn.className = "habit-check";
     checkBtn.setAttribute(
       "aria-label",
-      `Mark "${habit.title}" as ${habit.completedToday ? "incomplete" : "complete"}`
+      `Mark "${habit.title}" as ${completedToday ? "incomplete" : "complete"}`
     );
     checkBtn.textContent = "✓";
     checkBtn.addEventListener("click", () => {
-      habit.completedToday = !habit.completedToday;
+      const today = getLocalDateString();
+      if (isCompletedToday(habit.completedDates)) {
+        habit.completedDates = habit.completedDates.filter((d) => d !== today);
+      } else {
+        habit.completedDates.push(today);
+      }
       render();
     });
 
@@ -81,7 +95,7 @@ function render() {
     titleSpan.className = "habit-title";
     titleSpan.textContent = habit.title;
 
-    const streak = habit.completedToday ? 1 : 0;
+    const streak = calculateStreak(habit.completedDates);
     const streakSpan = document.createElement("span");
     streakSpan.className = `streak-badge${streak >= 1 ? " active" : ""}`;
     streakSpan.setAttribute(
@@ -151,7 +165,7 @@ addHabitForm.addEventListener("submit", (event) => {
   state.habits.push({
     id: crypto.randomUUID(),
     title,
-    completedToday: false,
+    completedDates: [],
     isArchived: false,
   });
 
