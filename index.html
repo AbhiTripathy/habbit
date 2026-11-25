@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Habit Tracker</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+
+<body>
+  <main class="app-container">
+    <header class="app-header">
+      <div>
+        <h1 class="app-title">Habit Tracker</h1>
+        <p id="today-date" class="today-date" aria-live="polite"></p>
+      </div>
+    </header>
+
+    <section aria-label="Add a new habit" class="add-habit-section">
+      <form id="add-habit-form" class="add-habit-form">
+        <label for="habit-input" class="sr-only">New habit name</label>
+        <input id="habit-input" name="title" type="text" placeholder="Add a daily habit (e.g. Morning walk)"
+          autocomplete="off" maxlength="80" required />
+        <button type="submit" class="btn btn-primary">Add</button>
+      </form>
+    </section>
+
+    <section aria-label="Today's habits" class="habits-section">
+      <div class="section-header">
+        <h2>Today</h2>
+        <span id="habit-progress" class="habit-progress"></span>
+      </div>
+
+      <ul id="habit-list" class="habit-list"></ul>
+
+      <p id="empty-state" class="empty-state" hidden>
+        No habits yet. Add one above to start building your streak.
+      </p>
+    </section>
+
+    <section id="archived-section" class="archived-section" hidden>
+      <button id="toggle-archived-btn" type="button" class="btn-link" aria-expanded="false">
+        Show archived habits
+      </button>
+      <ul id="archived-list" class="habit-list archived-list" hidden></ul>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script type="module" src="app.js"></script>
+</body>
+
+</html>
